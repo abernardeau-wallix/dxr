@@ -182,10 +182,10 @@ fn from_datetime() {
 #[test]
 fn from_datetime_fail() {
     let value = "<value><dateTime.iso8601>202520252025</dateTime.iso8601></value>";
-    assert!(from_str::<Value>(value)
+    assert!(dbg!(from_str::<Value>(value))
         .unwrap_err()
         .to_string()
-        .contains("Invalid dateTime.iso8601 value"));
+        .contains("Invalid format for dateTime.iso8601 value"));
 }
 
 #[test]

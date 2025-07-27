@@ -5,11 +5,18 @@ use thiserror::Error;
 use crate::fault::Fault;
 
 #[derive(Debug, Error, PartialEq)]
+#[non_exhaustive]
 /// Error type representing conversion errors between XML-RPC values and Rust values.
 pub enum DxrError {
     /// Error variant for XML parser errors.
     #[error("Failed to parse XML data: {}", .error)]
     InvalidData {
+        /// description of the parsing error
+        error: String,
+    },
+    /// Error variant for invalid dateTime.iso8601 values.
+    #[error("Invalid format for dateTime.iso8601 value: \n{}", .error)]
+    InvalidDateTime {
         /// description of the parsing error
         error: String,
     },
@@ -55,6 +62,27 @@ impl DxrError {
     /// The returned string describes the XML (de)serialization issue.
     pub fn as_invalid_data(&self) -> Option<&str> {
         if let DxrError::InvalidData { error } = self {
+            Some(error)
+        } else {
+            None
+        }
+    }
+
+    /// Construct an [`DxrError`] for invalid datetime values.
+    pub fn invalid_datetime(error: String) -> DxrError {
+        DxrError::InvalidDateTime { error }
+    }
+
+    /// Check if a given [`DxrError`] was raised for an invalid datetime value.
+    pub fn is_invalid_datetime(&self) -> bool {
+        matches!(self, DxrError::InvalidDateTime { .. })
+    }
+
+    /// Check for [`DxrError::InvalidDateTime`] and return the inner error in case of a match.
+    ///
+    /// The returned string describes the parsing failure.
+    pub fn as_invalid_datetime(&self) -> Option<&str> {
+        if let DxrError::InvalidDateTime { error } = self {
             Some(error)
         } else {
             None
@@ -133,11 +161,6 @@ impl DxrError {
 
 impl From<DxrError> for Fault {
     fn from(error: DxrError) -> Self {
-        match error {
-            DxrError::InvalidData { .. } => Fault::new(400, error.to_string()),
-            DxrError::MissingField { .. } => Fault::new(400, error.to_string()),
-            DxrError::ParameterMismatch { .. } => Fault::new(400, error.to_string()),
-            DxrError::WrongType { .. } => Fault::new(400, error.to_string()),
-        }
+        Fault::new(400, error.to_string())
     }
 }

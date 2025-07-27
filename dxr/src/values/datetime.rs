@@ -7,6 +7,8 @@ use winnow::error::{ContextError, StrContext, StrContextValue};
 use winnow::token::take;
 use winnow::Parser;
 
+use crate::error::DxrError;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DateTime {
     year: u16,
@@ -55,29 +57,13 @@ impl Display for DateTime {
 }
 
 impl FromStr for DateTime {
-    type Err = DateTimeParseError;
+    type Err = DxrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         DateTimeParser
             .parse(s)
-            .map_err(|e| DateTimeParseError::InvalidFormat(e.to_string()))
+            .map_err(|e| DxrError::invalid_datetime(e.to_string()))
     }
-}
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum DateTimeParseError {
-    #[error("Invalid format for dateTime.iso8601 value: {}", .0)]
-    InvalidFormat(String),
-    #[error("Invalid dateTime.iso8601 value: Month out of range ({})", .0)]
-    InvalidMonth(u8),
-    #[error("Invalid dateTime.iso8601 value: Day out of range ({})", .0)]
-    InvalidDay(u8),
-    #[error("Invalid dateTime.iso8601 value: Hour out of range ({})", .0)]
-    InvalidHour(u8),
-    #[error("Invalid dateTime.iso8601 value: Minutes out of range ({})", .0)]
-    InvalidMinutes(u8),
-    #[error("Invalid dateTime.iso8601 value: Seconds out of range ({})", .0)]
-    InvalidSeconds(u8),
 }
 
 struct DateTimeParser;
@@ -127,10 +113,7 @@ impl Parser<&str, u8, ContextError> for MonthParser {
     fn parse_next(&mut self, input: &mut &str) -> winnow::Result<u8> {
         take(2usize)
             .parse_to()
-            .try_map(|month| match month {
-                1..=12 => Ok(month),
-                _ => Err(DateTimeParseError::InvalidMonth(month)),
-            })
+            .verify(|m| *m > 0 && *m <= 12)
             .context(StrContext::Label("month"))
             .parse_next(input)
     }
@@ -144,13 +127,7 @@ impl Parser<&str, u8, ContextError> for DayParser {
     fn parse_next(&mut self, input: &mut &str) -> winnow::Result<u8> {
         take(2usize)
             .parse_to()
-            .try_map(|day| {
-                if day == 0 || day > self.max {
-                    Err(DateTimeParseError::InvalidDay(day))
-                } else {
-                    Ok(day)
-                }
-            })
+            .verify(|d| *d > 0 && *d <= self.max)
             .context(StrContext::Label("day"))
             .parse_next(input)
     }
@@ -162,13 +139,7 @@ impl Parser<&str, u8, ContextError> for HourParser {
     fn parse_next(&mut self, input: &mut &str) -> winnow::Result<u8> {
         take(2usize)
             .parse_to()
-            .try_map(|hour| {
-                if hour > 24 {
-                    Err(DateTimeParseError::InvalidHour(hour))
-                } else {
-                    Ok(hour)
-                }
-            })
+            .verify(|h| *h < 24)
             .context(StrContext::Label("hour"))
             .parse_next(input)
     }
@@ -180,13 +151,7 @@ impl Parser<&str, u8, ContextError> for MinuteParser {
     fn parse_next(&mut self, input: &mut &str) -> winnow::Result<u8> {
         take(2usize)
             .parse_to()
-            .try_map(|minute| {
-                if minute > 59 {
-                    Err(DateTimeParseError::InvalidMinutes(minute))
-                } else {
-                    Ok(minute)
-                }
-            })
+            .verify(|m| *m < 60)
             .context(StrContext::Label("minute"))
             .parse_next(input)
     }
@@ -198,13 +163,7 @@ impl Parser<&str, u8, ContextError> for SecondParser {
     fn parse_next(&mut self, input: &mut &str) -> winnow::Result<u8> {
         take(2usize)
             .parse_to()
-            .try_map(|second| {
-                if second > 59 {
-                    Err(DateTimeParseError::InvalidSeconds(second))
-                } else {
-                    Ok(second)
-                }
-            })
+            .verify(|s| *s < 60)
             .context(StrContext::Label("second"))
             .parse_next(input)
     }

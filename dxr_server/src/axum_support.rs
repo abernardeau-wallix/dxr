@@ -24,6 +24,7 @@ use std::sync::Arc;
 
 use axum::http::HeaderMap;
 use axum::routing::post;
+use axum::serve::Listener;
 use axum::Router;
 
 use thiserror::Error;
@@ -139,18 +140,22 @@ impl Server {
         self.serve_listener(listener).await
     }
 
-    /// This method launches a server  that uses the supplied [`TcpListener`] and with the
+    /// This method launches a server that uses the supplied [`Listener`] and with the
     /// configured route of the XML-RPC endpoint as the only route that will accept requests.
     ///
     /// Requests with invalid input, calls of unknown methods, and failed methods are converted
     /// into fault responses.
-    pub async fn serve_listener(self, listener: TcpListener) -> Result<(), ServerError> {
+    pub async fn serve_listener<L>(self, listener: L) -> Result<(), ServerError>
+    where
+        L: Listener,
+        L::Addr: Debug,
+    {
         if let Some(barrier) = self.barrier {
-            Ok(axum::serve(listener, self.route.into_make_service())
+            Ok(axum::serve(listener, self.route)
                 .with_graceful_shutdown(async move { barrier.notified().await })
                 .await?)
         } else {
-            Ok(axum::serve(listener, self.route.into_make_service()).await?)
+            Ok(axum::serve(listener, self.route).await?)
         }
     }
 }

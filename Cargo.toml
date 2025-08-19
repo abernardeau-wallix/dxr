@@ -14,7 +14,7 @@ edition = "2021"
 rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 authors = ["Fabio Valentini <decathorpe@gmail.com>"]
-repository = "https://github.com/ironthree/dxr"
+repository = "https://codeberg.org/decathorpe/dxr"
 
 [workspace.dependencies]
 dxr =        { path = "./dxr",        version = "0.8.0-dev" }
